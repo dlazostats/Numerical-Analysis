@@ -4,8 +4,11 @@ library(numDeriv)
 library(alabama)
 library(readxl)
 library(deSolve)
+library(manipulate)
+library(fetch)
 library(linprog)
 library(ggplot2)
+library(mosaicCalc)
 library(quadprog)
 library(minpack.lm)
 library(BB)
@@ -511,7 +514,6 @@ par(mfrow = c(1,1))
 # Exercise
 # 1.- solve  dy/dt = ty+t initial condition y0=0.5
 ode1<-function(t,y,parm){
-  y=Y[1]
   dydt = t*y+t
   list(dydt)
 }
@@ -524,6 +526,79 @@ out = as.data.frame(ode(y = yinit,
 names(out) = c("t","y")
 out
 plot(out$t,out$y,type="l")
+
+# 2.- solve  dy/dt = 1-x
+soln=integrateODE(dx~1-x,x=0,tdur=list(from=0,to=4))
+plotFun(soln$x(t)~t,t.lim=range(0,4))
+
+# 2.- solve  logistic growth
+soln=integrateODE(dx~r*x*(1-x/k),x=1,k=10,r=0.5,
+                  tdur=list(from=0,to=20))
+plotFun(soln$x(t)~t,t.lim=range(0,20))
+soln$x(5)
+soln$x(5:10)
+
+# 3.- System of linear ODE
+epi <- integrateODE(dS ~ -a*S*I,
+                    dI ~ a*S*I - b*I,
+                    a = 0.0026, b = 0.5, S=762, I = 1,
+                    tdur = 20)
+plotFun(epi$S(t) ~ t, t.lim=range(0:20))
+plotFun(epi$I(t) ~ t, t.lim=range(0:20),add=T,col = "red")
+
+## 4.1 Phase plane
+fetch::fetchData("mPP.R") 
+fetch::fetchData("DiffEQ.R") 
+SIR=function(S,I){
+  a=0.0026
+  b=0.5
+  dS = -a*S*I
+  dI = a*S*I - b*I
+  return(c(dS,dI))
+}
+mPP(DE=SIR,xlim=c(0,600),ylim=c(0,600))
+
+#using ode
+r<-1;k=10;yini<-2
+odelog<-function(t,y,params){
+  list(r*y*(1-y/k))
+}
+times <- seq(from = 0, to = 20, by = 0.2)
+out <- ode(y = yini, times = times, func = odelog,
+           parms = NULL)
+out2 <- ode(y = 12, times = times, func = odelog,
+           parms = NULL)
+plot(out, out2, main = "logistic growth", lwd = 2)
+
+# comparing
+a=0.2;b=2;yini<-0
+time<-seq(from = 0, to = 150, by = 10)
+fp<-function(t,y,params){
+  dydt = b-a*y
+  list(dydt)
+}
+rk <- ode(y = yini, times = times, func = fp,
+           parms = NULL,method="rk4")
+eu <- ode(y = yini, times = times, func = fp,
+          parms = NULL,method="euler")
+plot(rk,eu,main="comparing",lwd=2)
+
+#Lorenz
+a <- -8/3; b <- -10; c <- 28
+yini <- c(X = 1, Y = 1, Z = 1)
+Lorenz <- function (t, y, parms) {
+  with(as.list(y), {
+    dX <- a * X + Y * Z
+    dY <- b * (Y - Z)
+    dZ <- -X * Y + c * Y - Z
+    list(c(dX, dY, dZ)) })
+}
+times <- seq(from = 0, to = 100, by = 0.01)
+out <- ode(y = yini, times = times, func = Lorenz,
+           parms = NULL)
+plot(out, lwd = 2)
+plot(out[,"X"], out[,"Y"], type = "l", xlab = "X",
+     ylab = "Y", main = "butterfly")
 
 ## 5.- Fitting models to data
 #-----------------------------
